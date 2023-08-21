@@ -206,11 +206,11 @@ class TorProbSim(object):
             plt.setp(box['boxes'],facecolor='black')
             plt.setp(box['medians'],linewidth=2,color='white')
         
-        alltor_perc = np.percentile(cs[0,:],q=percs).round()
-        onetor_perc = np.percentile(cs[1,:],q=percs).round()
-        sigtor_perc = np.percentile(cs[2,:],q=percs).round()
-        threetor_perc = np.percentile(cs[3,:],q=percs).round()
-        viotor_perc = np.percentile(cs[4,:],q=percs).round()       
+        alltor_perc = np.percentile(cs[0,:],q=percs).round().astype('int')
+        onetor_perc = np.percentile(cs[1,:],q=percs).round().astype('int')
+        sigtor_perc = np.percentile(cs[2,:],q=percs).round().astype('int')
+        threetor_perc = np.percentile(cs[3,:],q=percs).round().astype('int')
+        viotor_perc = np.percentile(cs[4,:],q=percs).round().astype('int')      
 
         print(f'Perc: 10th | 50th | 90th | 99th')
         print(f'*******************************')
