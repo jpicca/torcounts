@@ -2,9 +2,11 @@ from processor import TorProbSim
 
 import pathlib
 import argparse
+import json
 
 import numpy as np
 from scipy import interpolate as I
+from shapely.geometry import shape
 
 import pygrib as pg
 
@@ -48,8 +50,50 @@ with np.load(ndfd_file.as_posix()) as NPZ:
     Y = NPZ["Y"]
     proj = pyproj.Proj(NPZ["srs"].item())
 
+# Make gridder object
+G = pgrid.Gridder(X, Y, dx=4000)
 
-# Read geojson and grid on ndfd grid
+# Read geojson and create CIG grid
+with open(geo_file) as f:
+    geo_data = json.load(f)
+
+sig = G.make_empty_grid().astype(float)
+
+lons = []
+lats = []
+cats = []
+
+for feature in geo_data['features']:
+    
+    geometry = shape(feature['geometry'])
+
+    try:
+        lon,lat = geometry.exterior.xy
+        lon,lat = proj(lon,lat)
+        lons.append(lon)
+        lats.append(lat)
+        cats.append(feature['properties']['LABEL'])
+    except AttributeError:
+        for g in geometry:
+            lon = g.exterior.xy[0]
+            lat = g.exterior.xy[1]
+            lon, lat = proj(lon, lat)
+            lons.append(lon)
+            lats.append(lat)
+            cats.append(feature['properties']['LABEL'])
+            
+polys = G.grid_polygons(lons, lats)
+
+for poly, cat in zip(polys, cats):
+
+    if cat == 'SIGN':
+        sig[poly] = 0.1
+    elif cat == 'SIGD':
+        sig[poly] = 0.2
+    elif cat == 'SIGT':
+        sig[poly] = 0.3
+
+sig = sig.astype(float)*100
 
 
 # Create torprobsim object
