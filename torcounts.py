@@ -95,7 +95,6 @@ for poly, cat in zip(polys, cats):
 
 sig = sig.astype(float)*100
 
-
 # Create torprobsim object
-
-
+counter = TorProbSim(torn,sig)
+counter.calcCounts(graphic=False)

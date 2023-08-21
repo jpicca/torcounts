@@ -161,7 +161,7 @@ class TorProbSim(object):
         
     def calcCounts(self,graphic=False):
         
-        percs=[10,25,50,75,90]
+        percs=[10,25,50,75,90,99]
         
         self._genSims()
         
@@ -212,14 +212,15 @@ class TorProbSim(object):
         threetor_perc = np.percentile(cs[3,:],q=percs).round()
         viotor_perc = np.percentile(cs[4,:],q=percs).round()       
 
-        print(f'Best Case | Median Scenario | Worst Case')
-        print(f'All: {alltor_perc[0]} | {alltor_perc[2]} | {alltor_perc[4]}')
-        print(f'EF1+: {onetor_perc[0]} | {onetor_perc[2]} | {onetor_perc[4]}')
-        print(f'EF2+: {sigtor_perc[0]} | {sigtor_perc[2]} | {sigtor_perc[4]}')
-        print(f'EF3+: {threetor_perc[0]} | {threetor_perc[2]} | {threetor_perc[4]}')
-        print(f'EF4+: {viotor_perc[0]} | {viotor_perc[2]} | {viotor_perc[4]}')
-        print('-----------------')
-        print(f'Most Likely Tornado Count Ranges')
+        print(f'Perc: 10th | 50th | 90th | 99th')
+        print(f'*******************************')
+        print(f'All: {alltor_perc[0]} | {alltor_perc[2]} | {alltor_perc[4]} | {alltor_perc[5]}')
+        print(f'EF1+: {onetor_perc[0]} | {onetor_perc[2]} | {onetor_perc[4]} | {onetor_perc[5]}')
+        print(f'EF2+: {sigtor_perc[0]} | {sigtor_perc[2]} | {sigtor_perc[4]} | {sigtor_perc[5]}')
+        print(f'EF3+: {threetor_perc[0]} | {threetor_perc[2]} | {threetor_perc[4]} | {threetor_perc[5]}')
+        print(f'EF4+: {viotor_perc[0]} | {viotor_perc[2]} | {viotor_perc[4]} | {viotor_perc[5]}')
+        print(f'*******************************')
+        print(f'Most Likely Tornado Count Ranges (25th-75th Percentile)')
         print(f'All: {alltor_perc[1]} - {alltor_perc[3]}')
         print(f'EF1+: {onetor_perc[1]} - {onetor_perc[3]}')
         print(f'EF2+: {sigtor_perc[1]} - {sigtor_perc[3]}')
