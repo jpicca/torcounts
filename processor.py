@@ -73,12 +73,10 @@ def flatten_list(_list):
 
 
 class TorProbSim(object):
-#     def __init__(self,torn,sigTorn,conTorn,ndfd_area=25,nsims=10000):
     def __init__(self,torn,sigTorn,ndfd_area=25,nsims=10000):
         self.tornProb = torn
         self.sigProb = sigTorn
         self.continuous = make_continuous(self.tornProb)
-#         self.continuous = conTorn
         self.tornado_dists = TornadoDistributions()
         self.ndfd_area = ndfd_area
         self.nsims = nsims

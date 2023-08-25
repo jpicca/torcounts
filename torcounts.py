@@ -95,6 +95,37 @@ for poly, cat in zip(polys, cats):
 
 sig = sig.astype(float)*100
 
-# Create torprobsim object
+# Check torn and sig grids for 0s / inconsistencies
+if not np.count_nonzero(torn):
+
+    # If there are CIG contours
+    if np.count_nonzero(sig):
+        print('''
+        **Error Detected** 
+        Tornado coverage probabilities less than 2%, but conditional intensity contours provided
+        ''')
+
+    # Else if there are no CIG contours
+    else:
+        print(f'Perc: 10th | 50th | 90th | 99th')
+        print(f'*******************************')
+        print(f'All: 0 | 0 | 0 | 0')
+        print(f'EF1+: 0 | 0 | 0 | 0')
+        print(f'EF2+: 0 | 0 | 0 | 0')
+        print(f'EF3+: 0 | 0 | 0 | 0')
+        print(f'EF4+: 0 | 0 | 0 | 0')
+        print(f'*******************************')
+        print(f'Most Likely Tornado Count Ranges (25th-75th Percentile)')
+        print(f'All: 0 - 0')
+        print(f'EF1+: 0 - 0')
+        print(f'EF2+: 0 - 0')
+        print(f'EF3+: 0 - 0')
+        print(f'EF4+: 0 - 0')
+
+    # Exit script
+    import sys
+    sys.exit(0)
+
+# Otherwise, create torprobsim object and counts
 counter = TorProbSim(torn,sig)
 counter.calcCounts(graphic=False)
