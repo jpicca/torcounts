@@ -5,7 +5,7 @@ from scipy import stats
 from skimage import measure
 
 import matplotlib.pyplot as plt
-from matplotlib import colors
+import matplotlib.cbook as cbook
 
 _synthetic_tornado_fields = ["rating"]
 
@@ -81,10 +81,12 @@ class TorProbSim(object):
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'sizes': [16,9],
+            'sizes': [16,10,11],
             'h_off': 0.35,
             'v_off': [1.27,1.1],
             'figsize': (12,4),
+            'show_whisk': False,
+            'box_percs': [25,75],
             'whiskers': [10,90],
             'box_width': 0.2
         }
@@ -154,33 +156,55 @@ class TorProbSim(object):
         return np.array([[np.sum(arr > -1) for arr in self._sims],
                     [np.sum(arr > 0) for arr in self._sims],
                     [np.sum(arr > 1) for arr in self._sims],
-                    [np.sum(arr > 2) for arr in self._sims],
-                    [np.sum(arr > 3) for arr in self._sims]])
+                    [np.sum(arr > 2) for arr in self._sims]])
         
     def calcCounts(self,graphic=False):
         
-        percs=[10,25,50,75,90,99]
-        
         self._genSims()
-        
         cs = self._countsPerRatSim() 
+        percs = self.gr_kwargs['box_percs']
         
         if graphic:
             
-            fig,ax = plt.subplots(figsize=self.gr_kwargs['figsize'])
+            # Initialize figure
+            fig,ax = plt.subplots(figsize=self.gr_kwargs['figsize'],facecolor='white')
             sizes = self.gr_kwargs['sizes']
             h_off = self.gr_kwargs['h_off']
             v_off = self.gr_kwargs['v_off']
             whis = self.gr_kwargs['whiskers']
             widths = self.gr_kwargs['box_width']
 
-            box = ax.boxplot(cs.tolist(),vert=False,whis=whis,showfliers=False,
-                            widths=widths,showcaps=False, patch_artist=True)
+            # Get percentiles and round to integers
+            box_list = [
+                cbook.boxplot_stats(cs[0])[0],
+                cbook.boxplot_stats(cs[1])[0],
+                cbook.boxplot_stats(cs[2])[0],
+                cbook.boxplot_stats(cs[3])[0]
+            ]
 
+            for i in range(0,cs.shape[0]):
+                box_list[i]['q1'], box_list[i]['q3'] = np.percentile(cs[i],percs).astype('int')
+
+            # Create box plot with customized data/percentiles
+            box = ax.bxp(box_list,vert=False,showfliers=False,
+                            widths=widths,showcaps=False,patch_artist=True,
+                            whiskerprops=dict(alpha=int(self.gr_kwargs['show_whisk'])))
+
+            # Annotating median values on boxplots
             for idx,median in enumerate(box['medians']):
                 text = median.get_xdata()[0]
                 ax.text(text,idx+v_off[0],f'{int(text)}',ha='center',fontsize=sizes[0])
 
+            # Formatting x-axis limits
+            x_min, x_max = ax.get_xlim()
+            
+            if x_max < 10:
+                x_max = 10
+                ax.set_xlim([0,x_max])
+            
+            h_off *= x_max/100
+
+            # Annotating range values on boxplots
             for idx,whisker in enumerate(box['whiskers']):
                 if idx % 2 == 0:
                     right, left = whisker.get_xdata()
@@ -193,34 +217,34 @@ class TorProbSim(object):
                     # Left
                     ax.text(left+h_off,int(idx/2)+v_off[1],f'{int(left)}',ha=ha,fontsize=sizes[1])
 
+            # Plot aesthetics
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
             ax.spines['left'].set_visible(False)
             ax.spines['bottom'].set_visible(False)
 
-            ax.set_yticklabels(['All','EF1+','EF2+','EF3+','EF4+'])
+            ax.set_yticklabels(['All','EF1+','EF2+','EF3+'])
             ax.tick_params(labelsize=12)
+
+            # Title and Other Info
+            ax.text((x_max-x_min)*.6,4,'Ranges of Most Likely Tornado Counts',ha='center',fontsize=sizes[0])
+            ax.text((x_max-x_min)*.6,3.5,'Center values indicate median scenario.',ha='center',fontsize=sizes[2])
 
             plt.setp(box['boxes'],facecolor='black')
             plt.setp(box['medians'],linewidth=2,color='white')
-        
-        alltor_perc = np.percentile(cs[0,:],q=percs).round().astype('int')
-        onetor_perc = np.percentile(cs[1,:],q=percs).round().astype('int')
-        sigtor_perc = np.percentile(cs[2,:],q=percs).round().astype('int')
-        threetor_perc = np.percentile(cs[3,:],q=percs).round().astype('int')
-        viotor_perc = np.percentile(cs[4,:],q=percs).round().astype('int')      
+            plt.tight_layout()
 
-        print(f'Perc: 10th | 50th | 90th | 99th')
-        print(f'*******************************')
-        print(f'All: {alltor_perc[0]} | {alltor_perc[2]} | {alltor_perc[4]} | {alltor_perc[5]}')
-        print(f'EF1+: {onetor_perc[0]} | {onetor_perc[2]} | {onetor_perc[4]} | {onetor_perc[5]}')
-        print(f'EF2+: {sigtor_perc[0]} | {sigtor_perc[2]} | {sigtor_perc[4]} | {sigtor_perc[5]}')
-        print(f'EF3+: {threetor_perc[0]} | {threetor_perc[2]} | {threetor_perc[4]} | {threetor_perc[5]}')
-        print(f'EF4+: {viotor_perc[0]} | {viotor_perc[2]} | {viotor_perc[4]} | {viotor_perc[5]}')
-        print(f'*******************************')
-        print(f'Most Likely Tornado Count Ranges (25th-75th Percentile)')
-        print(f'All: {alltor_perc[1]} - {alltor_perc[3]}')
-        print(f'EF1+: {onetor_perc[1]} - {onetor_perc[3]}')
-        print(f'EF2+: {sigtor_perc[1]} - {sigtor_perc[3]}')
-        print(f'EF3+: {threetor_perc[1]} - {threetor_perc[3]}')
-        print(f'EF4+: {viotor_perc[1]} - {viotor_perc[3]}')
+            plt.savefig('./out-images/torcounts.png',dpi=100)
+        
+        else:
+
+            alltor_perc = np.percentile(cs[0,:],q=percs).round().astype('int')
+            onetor_perc = np.percentile(cs[1,:],q=percs).round().astype('int')
+            sigtor_perc = np.percentile(cs[2,:],q=percs).round().astype('int')
+            threetor_perc = np.percentile(cs[3,:],q=percs).round().astype('int')   
+
+            print(f'Most Likely Tornado Count Ranges')
+            print(f'All: {alltor_perc[0]} - {alltor_perc[1]}')
+            print(f'EF1+: {onetor_perc[0]} - {onetor_perc[1]}')
+            print(f'EF2+: {sigtor_perc[0]} - {sigtor_perc[1]}')
+            print(f'EF3+: {threetor_perc[0]} - {threetor_perc[1]}')

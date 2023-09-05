@@ -107,20 +107,7 @@ if not np.count_nonzero(torn):
 
     # Else if there are no CIG contours
     else:
-        print(f'Perc: 10th | 50th | 90th | 99th')
-        print(f'*******************************')
-        print(f'All: 0 | 0 | 0 | 0')
-        print(f'EF1+: 0 | 0 | 0 | 0')
-        print(f'EF2+: 0 | 0 | 0 | 0')
-        print(f'EF3+: 0 | 0 | 0 | 0')
-        print(f'EF4+: 0 | 0 | 0 | 0')
-        print(f'*******************************')
-        print(f'Most Likely Tornado Count Ranges (25th-75th Percentile)')
-        print(f'All: 0 - 0')
-        print(f'EF1+: 0 - 0')
-        print(f'EF2+: 0 - 0')
-        print(f'EF3+: 0 - 0')
-        print(f'EF4+: 0 - 0')
+        print(f'Coverage probabilities less than 2%. No tornado count ranges generated.')
 
     # Exit script
     import sys
@@ -128,4 +115,4 @@ if not np.count_nonzero(torn):
 
 # Otherwise, create torprobsim object and counts
 counter = TorProbSim(torn,sig)
-counter.calcCounts(graphic=False)
+counter.calcCounts(graphic=True)
