@@ -5,7 +5,8 @@ from scipy import stats
 from skimage import measure
 
 import matplotlib.pyplot as plt
-import matplotlib.cbook as cbook
+from matplotlib.cbook import boxplot_stats
+from matplotlib.ticker import MaxNLocator
 
 _synthetic_tornado_fields = ["rating"]
 
@@ -176,10 +177,10 @@ class TorProbSim(object):
 
             # Get percentiles and round to integers
             box_list = [
-                cbook.boxplot_stats(cs[0])[0],
-                cbook.boxplot_stats(cs[1])[0],
-                cbook.boxplot_stats(cs[2])[0],
-                cbook.boxplot_stats(cs[3])[0]
+                boxplot_stats(cs[0])[0],
+                boxplot_stats(cs[1])[0],
+                boxplot_stats(cs[2])[0],
+                boxplot_stats(cs[3])[0]
             ]
 
             for i in range(0,cs.shape[0]):
@@ -197,25 +198,9 @@ class TorProbSim(object):
 
             # Formatting x-axis limits
             x_min, x_max = ax.get_xlim()
-            
             if x_max < 10:
                 x_max = 10
                 ax.set_xlim([0,x_max])
-            
-            h_off *= x_max/100
-
-            # Annotating range values on boxplots
-            for idx,whisker in enumerate(box['whiskers']):
-                if idx % 2 == 0:
-                    right, left = whisker.get_xdata()
-                    ha='right'
-                    # Right
-                    ax.text(right-h_off,int(idx/2)+v_off[1],f'{int(right)}',ha=ha,fontsize=sizes[1])
-                else:
-                    left, right = whisker.get_xdata()
-                    ha='left'
-                    # Left
-                    ax.text(left+h_off,int(idx/2)+v_off[1],f'{int(left)}',ha=ha,fontsize=sizes[1])
 
             # Plot aesthetics
             ax.spines['right'].set_visible(False)
@@ -223,12 +208,15 @@ class TorProbSim(object):
             ax.spines['left'].set_visible(False)
             ax.spines['bottom'].set_visible(False)
 
+            # Make sure x-axis ticks are on integers
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
             ax.set_yticklabels(['All','EF1+','EF2+','EF3+'])
             ax.tick_params(labelsize=12)
 
             # Title and Other Info
-            ax.text((x_max-x_min)*.6,4,'Ranges of Most Likely Tornado Counts',ha='center',fontsize=sizes[0])
-            ax.text((x_max-x_min)*.6,3.5,'Center values indicate median scenario.',ha='center',fontsize=sizes[2])
+            ax.text((x_max-x_min)*.6+x_min,4,'Ranges of Most Likely Tornado Counts',ha='center',fontsize=sizes[0])
+            ax.text((x_max-x_min)*.6+x_min,3.5,'Annotated values indicate median scenario.',ha='center',fontsize=sizes[2])
 
             plt.setp(box['boxes'],facecolor='black')
             plt.setp(box['medians'],linewidth=2,color='white')
