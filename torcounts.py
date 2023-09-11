@@ -13,15 +13,19 @@ import pygrib as pg
 import pygridder as pgrid
 import pyproj
 
+import os
+
 
 ### CLI Parser ###
 forecast_file_help = "The tornado coverage probabilities grib file"
 geo_file_help = "The conditional intensity geojson file"
+out_path_help = "Absolute path to the directory for writing the images"
 ndfd_file_help = "NPZ including grid lat/lons and projection string"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--forecastfile", required=True, help=forecast_file_help)
 parser.add_argument("-gf", "--geofile", required=True, help=geo_file_help)
+parser.add_argument("-o", "--outpath", required=False, default=os.getcwd(), help=out_path_help)
 parser.add_argument("-n", "--ndfdfile", required=False, default=pathlib.Path('./assets/ndfd.npz'), help=ndfd_file_help)
 
 args = parser.parse_args()
@@ -29,6 +33,7 @@ args = parser.parse_args()
 
 forecast_file = pathlib.Path(args.forecastfile)
 geo_file = pathlib.Path(args.geofile)
+out_file = pathlib.Path(args.outpath)
 ndfd_file = pathlib.Path(args.ndfdfile)
 
 # Function to read forecast grib file
@@ -115,4 +120,4 @@ if not np.count_nonzero(torn):
 
 # Otherwise, create torprobsim object and counts
 counter = TorProbSim(torn,sig)
-counter.calcCounts(graphic=True)
+counter.calcCounts(out_file,graphic=True)

@@ -159,7 +159,7 @@ class TorProbSim(object):
                     [np.sum(arr > 1) for arr in self._sims],
                     [np.sum(arr > 2) for arr in self._sims]])
         
-    def calcCounts(self,graphic=False):
+    def calcCounts(self,out,graphic=False):
         
         self._genSims()
         cs = self._countsPerRatSim() 
@@ -222,7 +222,7 @@ class TorProbSim(object):
             plt.setp(box['medians'],linewidth=2,color='white')
             plt.tight_layout()
 
-            plt.savefig('./out-images/torcounts.png',dpi=100)
+            plt.savefig(out.joinpath('torcounts.png'),dpi=100)
         
         else:
 
