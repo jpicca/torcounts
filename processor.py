@@ -7,6 +7,7 @@ from skimage import measure
 import matplotlib.pyplot as plt
 from matplotlib.cbook import boxplot_stats
 from matplotlib.ticker import MaxNLocator
+import matplotlib.gridspec as gridspec
 
 _synthetic_tornado_fields = ["rating"]
 
@@ -82,13 +83,9 @@ class TorProbSim(object):
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'sizes': [16,10,11],
-            'h_off': 0.35,
-            'v_off': [1.27,1.1],
             'figsize': (12,4),
             'show_whisk': False,
             'box_percs': [25,75],
-            'whiskers': [10,90],
             'box_width': 0.2
         }
         
@@ -129,11 +126,6 @@ class TorProbSim(object):
         single_sig_inds = sigtorn_1d[inds] == 10
         double_sig_inds = sigtorn_1d[inds] == 20
 
-        # Handle Locations
-        non_sig_loc_inds = inds[non_sig_inds]
-        single_sig_loc_inds = inds[single_sig_inds]
-        double_sig_loc_inds = inds[double_sig_inds]
-
         _mags=[0, 1, 2, 3, 4, 5]
 
         non_sig_ratings = np.random.choice(_mags, size=non_sig_inds.sum(),
@@ -164,15 +156,19 @@ class TorProbSim(object):
         self._genSims()
         cs = self._countsPerRatSim() 
         percs = self.gr_kwargs['box_percs']
+
+        starter_list = []
+        for thresh in [0,2,4,9,19]:
+            starter_list.append([int(round(np.sum(countlist > thresh)/100, 0)) for countlist in cs])
         
         if graphic:
             
             # Initialize figure
-            fig,ax = plt.subplots(figsize=self.gr_kwargs['figsize'],facecolor='white')
-            sizes = self.gr_kwargs['sizes']
-            h_off = self.gr_kwargs['h_off']
-            v_off = self.gr_kwargs['v_off']
-            whis = self.gr_kwargs['whiskers']
+            fig = plt.figure(figsize=self.gr_kwargs['figsize'],facecolor='white')
+            gs = gridspec.GridSpec(1,8)
+            ax1 = fig.add_subplot(gs[:,:5])
+            ax2 = fig.add_subplot(gs[:,5:])
+
             widths = self.gr_kwargs['box_width']
 
             # Get percentiles and round to integers
@@ -183,46 +179,73 @@ class TorProbSim(object):
                 boxplot_stats(cs[3])[0]
             ]
 
+            # Update percentile stats for boxes
             for i in range(0,cs.shape[0]):
                 box_list[i]['q1'], box_list[i]['q3'] = np.percentile(cs[i],percs).astype('int')
 
             # Create box plot with customized data/percentiles
-            box = ax.bxp(box_list,vert=False,showfliers=False,
+            box = ax1.bxp(box_list,vert=False,showfliers=False,
                             widths=widths,showcaps=False,patch_artist=True,
                             whiskerprops=dict(alpha=int(self.gr_kwargs['show_whisk'])))
 
             # Annotating median values on boxplots
             for idx,median in enumerate(box['medians']):
                 text = median.get_xdata()[0]
-                ax.text(text,idx+v_off[0],f'{int(text)}',ha='center',fontsize=sizes[0])
-
-            # Formatting x-axis limits
-            x_min, x_max = ax.get_xlim()
-            if x_max < 10:
-                x_max = 10
-                ax.set_xlim([0,x_max])
+                ax1.text(text,idx+1.15,f'{int(text)}',ha='center',fontsize=14)
 
             # Plot aesthetics
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
+            # Formatting x-axis limits
+            x_min, x_max = ax1.get_xlim()
+            if x_max < 10:
+                x_max = 10
+                ax1.set_xlim([0,x_max])
 
             # Make sure x-axis ticks are on integers
-            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-            ax.set_yticklabels(['All','EF1+','EF2+','EF3+'])
-            ax.tick_params(labelsize=12)
+            ax1.set_yticklabels(['All','EF1+','EF2+','EF3+'])
+            ax1.tick_params(labelsize=12)
+            ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=10)
 
             # Title and Other Info
-            ax.text((x_max-x_min)*.6+x_min,4,'Ranges of Most Likely Tornado Counts',ha='center',fontsize=sizes[0])
-            ax.text((x_max-x_min)*.6+x_min,3.5,'Annotated values indicate median scenario.',ha='center',fontsize=sizes[2])
+            ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=8)
 
             plt.setp(box['boxes'],facecolor='black')
             plt.setp(box['medians'],linewidth=2,color='white')
-            plt.tight_layout()
 
-            plt.savefig(out.joinpath('torcounts.png'),dpi=100)
+            # Create exceedance matrix plot
+            heatmap_list = np.array(starter_list).T
+            ax2.imshow(heatmap_list,cmap='Reds',vmin=0,vmax=100)
+            ax2.set_xticks(np.arange(heatmap_list.shape[1])+0.5, minor=True)
+            ax2.set_xticks(np.arange(heatmap_list.shape[1]))
+            ax2.set_xticklabels(['1+', '3+', '5+', '10+', '20+'])
+            ax2.set_yticks(np.arange(-.5, 3.5, 1), minor=True)
+            ax2.set_yticks(np.arange(heatmap_list.shape[0]))
+            ax2.set_yticklabels(['All','EF1+','EF2+','EF3+'])
+            ax2.grid(which="minor", color="w", linestyle='-', linewidth=1)
+            ax2.tick_params(which="minor", bottom=False, left=False, right=False)
+            ax2.tick_params(labelsize=12,length=0)
+            ax2.set_ylim([-0.5,3.5])
+            ax2.set_title('Count Exceedance Probability Matrix',loc='left',weight='bold',size=10)
+
+            # Plot aesthetics
+            for ax in [ax1,ax2]:
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+
+            kw = dict(horizontalalignment="center",
+                    verticalalignment="center",
+                    fontsize=10,weight='bold')
+            for i in range(heatmap_list.shape[0]):
+                for j in range(heatmap_list.shape[1]):
+                    kw.update(color=['black','white'][int(heatmap_list[i, j] > 60)])
+                    text = ax2.axes.text(j, i, f'{heatmap_list[i, j]}%', **kw)
+
+
+            gs.tight_layout(fig)
+            fig.savefig(out.joinpath('torcounts.png'),dpi=100)
         
         else:
 
