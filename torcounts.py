@@ -10,18 +10,22 @@ from shapely.geometry import shape
 
 import pygrib as pg
 
-import pygridder as pgrid
+from pygridder import pygridder as pgrid
 import pyproj
+
+import os
 
 
 ### CLI Parser ###
 forecast_file_help = "The tornado coverage probabilities grib file"
 geo_file_help = "The conditional intensity geojson file"
+out_path_help = "Absolute path to the directory for writing the images"
 ndfd_file_help = "NPZ including grid lat/lons and projection string"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--forecastfile", required=True, help=forecast_file_help)
 parser.add_argument("-gf", "--geofile", required=True, help=geo_file_help)
+parser.add_argument("-o", "--outpath", required=False, default=os.getcwd(), help=out_path_help)
 parser.add_argument("-n", "--ndfdfile", required=False, default=pathlib.Path('./assets/ndfd.npz'), help=ndfd_file_help)
 
 args = parser.parse_args()
@@ -29,6 +33,7 @@ args = parser.parse_args()
 
 forecast_file = pathlib.Path(args.forecastfile)
 geo_file = pathlib.Path(args.geofile)
+out_file = pathlib.Path(args.outpath)
 ndfd_file = pathlib.Path(args.ndfdfile)
 
 # Function to read forecast grib file
@@ -95,6 +100,24 @@ for poly, cat in zip(polys, cats):
 
 sig = sig.astype(float)*100
 
-# Create torprobsim object
+# Check torn and sig grids for 0s / inconsistencies
+if not np.count_nonzero(torn):
+
+    # If there are CIG contours
+    if np.count_nonzero(sig):
+        print('''
+        **Error Detected** 
+        Tornado coverage probabilities less than 2%, but conditional intensity contours provided
+        ''')
+
+    # Else if there are no CIG contours
+    else:
+        print(f'Coverage probabilities less than 2%. No tornado count ranges generated.')
+
+    # Exit script
+    import sys
+    sys.exit(0)
+
+# Otherwise, create torprobsim object and counts
 counter = TorProbSim(torn,sig)
-counter.calcCounts(graphic=False)
+counter.calcCounts(out_file,graphic=True)
