@@ -10,7 +10,7 @@ from shapely.geometry import shape
 
 import pygrib as pg
 
-import pygridder as pgrid
+from pygridder import pygridder as pgrid
 import pyproj
 
 import os
