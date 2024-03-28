@@ -14,11 +14,15 @@ _synthetic_tornado_fields = ["rating"]
 class TornadoDistributions(object):
     def __init__(self):
         # Tornado Frequencies per unit Area
+        # New frequencies (note that f02 dist remains the same)
+        # Frequencies developed from 2010-2023 12,13,1630,20Z D1 outlooks
+        # Starting point of valid tornadoes gridded
+        # Counts of tornadoes were compared to area of coverage bin to generate frequency sample
         self.f02 = stats.exponweib(56.14739, 0.28515, loc=0, scale=4.41615e-8)
-        self.f05 = stats.exponweib(21.21447, 0.352119, loc=0, scale=6.13437e-7)
-        self.f10 = stats.exponweib(4.931, 0.559246, loc=0, scale=1.3774e-5)
-        self.f15 = stats.exponweib(4.9897, 0.581757, loc=0, scale=2.09688e-5)
-        self.f30 = stats.exponweib(13.12425, 0.50321, loc=0, scale=1.73468e-5)
+        self.f05 = stats.exponweib(18.61447, 0.332119, loc=0, scale=6.13437e-7)
+        self.f10 = stats.exponweib(5.531, 0.519246, loc=0, scale=1.3074e-5)
+        self.f15 = stats.exponweib(4.7, 0.731757, loc=0, scale=3.59688e-5)
+        self.f30 = stats.exponweib(14.02425, 0.44021, loc=0, scale=1.3068e-5)
 
         # Tornado Rating Distributions
         self.r_nonsig = np.array([0.653056, 0.269221, 0.058293, 0.016052, 0.003378, 0])
@@ -199,6 +203,8 @@ class TorProbSim(object):
             if x_max < 10:
                 x_max = 10
                 ax1.set_xlim([0,x_max])
+            else:
+                ax1.set_xlim([0,box_list[0]['q3']+10])
 
             # Make sure x-axis ticks are on integers
             ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
