@@ -81,7 +81,7 @@ for feature in geo_data['features']:
         lats.append(lat)
         cats.append(feature['properties']['LABEL'])
     except AttributeError:
-        for g in geometry:
+        for g in geometry.geoms:
             lon = g.exterior.xy[0]
             lat = g.exterior.xy[1]
             lon, lat = proj(lon, lat)
