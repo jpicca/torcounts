@@ -5,9 +5,16 @@ from scipy import stats
 from skimage import measure
 
 import matplotlib.pyplot as plt
+from matplotlib import colors
 from matplotlib.cbook import boxplot_stats
 from matplotlib.ticker import MaxNLocator
 import matplotlib.gridspec as gridspec
+
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+
+import warnings
+warnings.filterwarnings("ignore")
 
 _synthetic_tornado_fields = ["rating"]
 
@@ -79,15 +86,20 @@ def flatten_list(_list):
 
 
 class TorProbSim(object):
-    def __init__(self,torn,sigTorn,ndfd_area=25,nsims=10000):
+    def __init__(self,torn,sigTorn,lons,lats,ndfd_area=25,nsims=10000):
         self.tornProb = torn
         self.sigProb = sigTorn
+        self.lons = lons
+        self.lats = lats
         self.continuous = make_continuous(self.tornProb)
         self.tornado_dists = TornadoDistributions()
+        self.nonsig_sigtorp = np.sum(self.tornado_dists.r_nonsig[2:])
+        self.singlesig_sigtorp = np.sum(self.tornado_dists.r_singlesig[2:])
+        self.doublesig_sigtorp = np.sum(self.tornado_dists.r_doublesig[2:])
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'figsize': (12,4),
+            'figsize': (16,16),
             'show_whisk': False,
             'box_percs': [25,75],
             'box_width': 0.2
@@ -169,9 +181,62 @@ class TorProbSim(object):
             
             # Initialize figure
             fig = plt.figure(figsize=self.gr_kwargs['figsize'],facecolor='white')
-            gs = gridspec.GridSpec(1,8)
-            ax1 = fig.add_subplot(gs[:,:5])
-            ax2 = fig.add_subplot(gs[:,5:])
+            gs = gridspec.GridSpec(5,8)
+            ax1 = fig.add_subplot(gs[:2,4:])
+            ax2 = fig.add_subplot(gs[:2,:4])
+            ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
+
+            ### Unconditional Probability Map
+
+            # Get grid of sigtor multipliers
+            sigtorp_mult = self.sigProb.astype('float')
+            sigtorp_mult[self.sigProb == 0] = self.nonsig_sigtorp
+            sigtorp_mult[self.sigProb == 10] = self.singlesig_sigtorp
+            sigtorp_mult[self.sigProb == 20] = self.doublesig_sigtorp
+
+            tornProb_mult = self.tornProb.copy()
+            tornProb_mult[tornProb_mult < 0] = 0
+            sigtorp = tornProb_mult*sigtorp_mult
+
+            # Aesthetics
+            # Color curve function
+            cmap = plt.cm.Reds
+
+            # Create a list of RGB colors from the function
+            cmaplist = [cmap(i) for i in range(cmap.N)]
+
+            # Set the first color in the list to white
+            cmaplist[0] = (1,1,1,1)
+
+            # create the new map
+            cmap_sigtor = colors.LinearSegmentedColormap.from_list(
+                'Custom cmap', cmaplist, cmap.N)
+
+            # define the bins and normalize
+            bounds = np.arange(0, 11, 1)
+            # bounds = np.arange(0, 0.061, 0.01)
+            norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
+
+
+            ax_map.set_xlim([-1500000,2350000])
+            ax_map.set_ylim([-1500000,1300000])
+            otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp,
+                                     transform=ccrs.PlateCarree(),alpha=0.5,
+                                     cmap=cmap_sigtor,norm=norm_sigtor)
+            sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp,
+                                         transform=ccrs.PlateCarree(),
+                                         levels=[1,2,5,10,15],colors='black')
+            ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
+            
+            ax_map.add_feature(cfeature.STATES, linewidth=0.5)
+            ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
+            ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
+                             loc='left',weight='bold',size=14)
+
+            cax = fig.add_axes([0.92, 0.05, 0.03, 0.4])
+            cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
+            cb.set_label('Probability',size=14,weight='bold')
+            cax.tick_params(labelsize=16)
 
             widths = self.gr_kwargs['box_width']
 
@@ -210,11 +275,11 @@ class TorProbSim(object):
             ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 
             ax1.set_yticklabels(['All','EF1+','EF2+','EF3+'])
-            ax1.tick_params(labelsize=12)
-            ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=10)
+            ax1.tick_params(labelsize=14)
+            ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=14)
 
             # Title and Other Info
-            ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=8)
+            ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
 
             plt.setp(box['boxes'],facecolor='black')
             plt.setp(box['medians'],linewidth=2,color='white')
@@ -230,9 +295,9 @@ class TorProbSim(object):
             ax2.set_yticklabels(['All','EF1+','EF2+','EF3+'])
             ax2.grid(which="minor", color="w", linestyle='-', linewidth=1)
             ax2.tick_params(which="minor", bottom=False, left=False, right=False)
-            ax2.tick_params(labelsize=12,length=0)
+            ax2.tick_params(labelsize=14,length=0)
             ax2.set_ylim([-0.5,3.5])
-            ax2.set_title('Count Exceedance Probability Matrix',loc='left',weight='bold',size=10)
+            ax2.set_title('Count Exceedance Probability Matrix',loc='left',weight='bold',size=14)
 
             # Plot aesthetics
             for ax in [ax1,ax2]:
@@ -243,7 +308,7 @@ class TorProbSim(object):
 
             kw = dict(horizontalalignment="center",
                     verticalalignment="center",
-                    fontsize=10,weight='bold')
+                    fontsize=14,weight='bold')
             for i in range(heatmap_list.shape[0]):
                 for j in range(heatmap_list.shape[1]):
                     kw.update(color=['black','white'][int(heatmap_list[i, j] > 60)])

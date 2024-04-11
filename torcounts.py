@@ -53,6 +53,8 @@ torn = read_ndfd_grib_file(forecast_file)
 with np.load(ndfd_file.as_posix()) as NPZ:
     X = NPZ["X"]
     Y = NPZ["Y"]
+    ndfd_lons = NPZ["lons"]
+    ndfd_lats = NPZ["lats"]
     proj = pyproj.Proj(NPZ["srs"].item())
 
 # Make gridder object
@@ -119,5 +121,5 @@ if not np.count_nonzero(torn):
     sys.exit(0)
 
 # Otherwise, create torprobsim object and counts
-counter = TorProbSim(torn,sig)
+counter = TorProbSim(torn,sig,ndfd_lons,ndfd_lats)
 counter.calcCounts(out_file,graphic=True)
