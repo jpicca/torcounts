@@ -18,6 +18,10 @@ warnings.filterwarnings("ignore")
 
 _synthetic_tornado_fields = ["rating"]
 
+# Current increments used for continuous CIG field
+levs = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 
+        1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2]
+
 class TornadoDistributions(object):
     def __init__(self):
         # Tornado Frequencies per unit Area
@@ -35,6 +39,12 @@ class TornadoDistributions(object):
         self.r_nonsig = np.array([0.653056, 0.269221, 0.058293, 0.016052, 0.003378, 0])
         self.r_singlesig = np.array([0.460559, 0.381954, 0.119476, 0.031184, 0.006273, 0.000554])
         self.r_doublesig = np.array([0.3003, 0.363363, 0.168168, 0.09009, 0.063063, 0.015016])
+        self.r_triplesig = np.array([0.187347, 0.250486, 0.180708, 0.177871, 0.173852, 0.029736])
+
+        # Rating interpolation for continuous CIG grids
+        self.interpdists = I.interp1d([0,1,2,3], 
+                                      np.vstack([self.r_nonsig, self.r_singlesig,
+                                                 self.r_doublesig, self.r_triplesig]), axis=0)
         
     def conditionalProbs(self,thresh=0):
         return (np.sum(self.r_nonsig[thresh:]),np.sum(self.r_singlesig[thresh:]),
@@ -86,9 +96,10 @@ def flatten_list(_list):
 
 
 class TorProbSim(object):
-    def __init__(self,torn,sigTorn,lons,lats,ndfd_area=25,nsims=10000):
+    def __init__(self,torn,cigTorn,lons,lats,ndfd_area=25,nsims=10000):
         self.tornProb = torn
-        self.sigProb = sigTorn
+        self.tornProb[self.tornProb < 0] = 0
+        self.cigProb = cigTorn
         self.lons = lons
         self.lats = lats
         self.continuous = make_continuous(self.tornProb)
@@ -106,22 +117,19 @@ class TorProbSim(object):
         }
         
     # Calculate unconditional probs for rating thresholds
+    # Returns unconditional probability field for specified threshold
     def calcUncondit(self,thresh=2):
-        condit_grid = self.sigProb.copy().astype('float')
+        condit_grid = self.cigProb.copy().astype('float')
         condit_grid[:] = 0
+
+        for cig_lvl in levs:
+            cig_cprob = np.sum(self.tornado_dists.interpdists(cig_lvl)[thresh:])
+            condit_grid[self.cigProb == cig_lvl] = cig_cprob
         
-        nonsig_cprob = np.sum(self.tornado_dists.r_nonsig[thresh:])
-        singlesig_cprob = np.sum(self.tornado_dists.r_singlesig[thresh:])
-        doublesig_cprob = np.sum(self.tornado_dists.r_doublesig[thresh:])
+        return (self.tornProb/100)*condit_grid
         
-        condit_grid[self.sigProb == 0] = nonsig_cprob
-        condit_grid[self.sigProb == 10] = singlesig_cprob
-        condit_grid[self.sigProb == 20] = doublesig_cprob
-        
-        return (self.continuous/100)*condit_grid
-        
-    def _genSims(self):
-        sigtorn_1d = self.sigProb.ravel()
+    def genSims(self):
+        cigtorn_1d = self.cigProb.ravel()
 
         counts = np.zeros((5, self.nsims), dtype=int)
         counts[0, :] = (self.tornado_dists.f02.rvs(self.nsims) * self.ndfd_area * (self.tornProb == 2).sum()).astype(int)
@@ -138,30 +146,30 @@ class TorProbSim(object):
         inds30 = weighted_choice(prob=30, probs=self.tornProb, cprobs=self.continuous, size=scounts[4])
         inds = flatten_list([inds02, inds05, inds10, inds15, inds30])
 
-        non_sig_inds = sigtorn_1d[inds] == 0
-        single_sig_inds = sigtorn_1d[inds] == 10
-        double_sig_inds = sigtorn_1d[inds] == 20
-
         _mags=[0, 1, 2, 3, 4, 5]
 
-        non_sig_ratings = np.random.choice(_mags, size=non_sig_inds.sum(),
-                                        replace=True, p=self.tornado_dists.r_nonsig)
+        all_cig_rating = []
 
-        single_sig_ratings = np.random.choice(_mags, size=single_sig_inds.sum(),
-                                                replace=True, p=self.tornado_dists.r_singlesig)
+        # Run through continuous CIG levels, sum tors in this band, and generate ratings
+        for cig_lvl in levs:
+            cig_inds = cigtorn_1d[inds] == cig_lvl
 
-        double_sig_ratings = np.random.choice(_mags, size=double_sig_inds.sum(),
-                                                    replace=True, p=self.tornado_dists.r_doublesig)
+            all_cig_rating.append(
+                np.random.choice(_mags, size=cig_inds.sum(),
+                                    replace=True, p=self.tornado_dists.interpdists(cig_lvl))
+            )
 
-        simulated_tornadoes = flatten_list([non_sig_ratings, single_sig_ratings, double_sig_ratings])
+            # set_trace()
+
+        simulated_tornadoes = flatten_list(all_cig_rating)
         np.random.shuffle(simulated_tornadoes)
         _sims = np.split(simulated_tornadoes, counts.sum(axis=0).cumsum())[:-1]
         
         self._sims = _sims
         
     # Need a method to create 5x10000 array of tornado counts per sim for each
-    # threshold 0-4
-    def _countsPerRatSim(self):
+    # threshold (All, EF1+, EF2+, EF3+)
+    def countsPerRatSim(self):
         return np.array([[np.sum(arr > -1) for arr in self._sims],
                     [np.sum(arr > 0) for arr in self._sims],
                     [np.sum(arr > 1) for arr in self._sims],
@@ -169,8 +177,8 @@ class TorProbSim(object):
         
     def calcCounts(self,out,graphic=False):
         
-        self._genSims()
-        cs = self._countsPerRatSim() 
+        self.genSims()
+        cs = self.countsPerRatSim() 
         percs = self.gr_kwargs['box_percs']
 
         starter_list = []
@@ -188,15 +196,7 @@ class TorProbSim(object):
 
             ### Unconditional Probability Map
 
-            # Get grid of sigtor multipliers
-            sigtorp_mult = self.sigProb.astype('float')
-            sigtorp_mult[self.sigProb == 0] = self.nonsig_sigtorp
-            sigtorp_mult[self.sigProb == 10] = self.singlesig_sigtorp
-            sigtorp_mult[self.sigProb == 20] = self.doublesig_sigtorp
-
-            tornProb_mult = self.tornProb.copy()
-            tornProb_mult[tornProb_mult < 0] = 0
-            sigtorp = tornProb_mult*sigtorp_mult
+            sigtorp = self.calcUncondit(thresh=2)
 
             # Aesthetics
             # Color curve function
@@ -214,16 +214,15 @@ class TorProbSim(object):
 
             # define the bins and normalize
             bounds = np.arange(0, 11, 1)
-            # bounds = np.arange(0, 0.061, 0.01)
             norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
 
 
             ax_map.set_xlim([-1500000,2350000])
             ax_map.set_ylim([-1500000,1300000])
-            otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp,
+            otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
                                      transform=ccrs.PlateCarree(),alpha=0.5,
                                      cmap=cmap_sigtor,norm=norm_sigtor)
-            sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp,
+            sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
                                          transform=ccrs.PlateCarree(),
                                          levels=[1,2,5,10,15],colors='black')
             ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
