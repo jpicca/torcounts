@@ -19,8 +19,9 @@ warnings.filterwarnings("ignore")
 _synthetic_tornado_fields = ["rating"]
 
 # Current increments used for continuous CIG field
-levs = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 
-        1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2]
+levs = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 
+        1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+        2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2]
 
 class TornadoDistributions(object):
     def __init__(self):
@@ -40,11 +41,13 @@ class TornadoDistributions(object):
         self.r_singlesig = np.array([0.460559, 0.381954, 0.119476, 0.031184, 0.006273, 0.000554])
         self.r_doublesig = np.array([0.3003, 0.363363, 0.168168, 0.09009, 0.063063, 0.015016])
         self.r_triplesig = np.array([0.187347, 0.250486, 0.180708, 0.177871, 0.173852, 0.029736])
+        self.r_quadsig = np.array([0.1, 0.15, 0.2, 0.25, 0.25, 0.05])
 
         # Rating interpolation for continuous CIG grids
-        self.interpdists = I.interp1d([0,1,2,3], 
+        self.interpdists = I.interp1d([0,1,2,3,4], 
                                       np.vstack([self.r_nonsig, self.r_singlesig,
-                                                 self.r_doublesig, self.r_triplesig]), axis=0)
+                                                 self.r_doublesig, self.r_triplesig,
+                                                 self.r_quadsig]), axis=0)
         
     def conditionalProbs(self,thresh=0):
         return (np.sum(self.r_nonsig[thresh:]),np.sum(self.r_singlesig[thresh:]),
@@ -110,10 +113,12 @@ class TorProbSim(object):
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'figsize': (16,16),
-            'show_whisk': False,
-            'box_percs': [25,75],
-            'box_width': 0.2
+            'figsize': [(16,16),(12,30)],
+            'gridspec': [(5,8),(9,8)],
+            'show_whisk': True,
+            'box_percs': [5,25,75,95],
+            'box_width': 0.2,
+            'cbar_coords': [[0.92, 0.05, 0.03, 0.4],[0.92, 0.02, 0.025, 0.23]]
         }
         
     # Calculate unconditional probs for rating thresholds
@@ -186,137 +191,163 @@ class TorProbSim(object):
             starter_list.append([int(round(np.sum(countlist > thresh)/100, 0)) for countlist in cs])
         
         if graphic:
+
+            for j in range(0,2):
             
-            # Initialize figure
-            fig = plt.figure(figsize=self.gr_kwargs['figsize'],facecolor='white')
-            gs = gridspec.GridSpec(5,8)
-            ax1 = fig.add_subplot(gs[:2,4:])
-            ax2 = fig.add_subplot(gs[:2,:4])
-            ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
+                # Initialize prodgen figure
+                fig = plt.figure(figsize=self.gr_kwargs['figsize'][j],facecolor='white')
+                gs = gridspec.GridSpec(self.gr_kwargs['gridspec'][j][0],
+                                       self.gr_kwargs['gridspec'][j][1])
+                if j == 0:
+                    ax1 = fig.add_subplot(gs[:2,4:])
+                    ax2 = fig.add_subplot(gs[:2,:4])
+                    ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
+                else:
+                    ax1 = fig.add_subplot(gs[:3,:])
+                    ax2 = fig.add_subplot(gs[3:6,:])
+                    ax_map = fig.add_subplot(gs[6:,:],projection=ccrs.LambertConformal())
 
-            ### Unconditional Probability Map
+                ### Unconditional Probability Map
 
-            sigtorp = self.calcUncondit(thresh=2)
+                sigtorp = self.calcUncondit(thresh=2)
 
-            # Aesthetics
-            # Color curve function
-            cmap = plt.cm.Reds
+                # Aesthetics
+                # Color curve function
+                cmap = plt.cm.Reds
 
-            # Create a list of RGB colors from the function
-            cmaplist = [cmap(i) for i in range(cmap.N)]
+                # Create a list of RGB colors from the function
+                cmaplist = [cmap(i) for i in range(cmap.N)]
 
-            # Set the first color in the list to white
-            cmaplist[0] = (1,1,1,1)
+                # Set the first color in the list to white
+                cmaplist[0] = (1,1,1,1)
 
-            # create the new map
-            cmap_sigtor = colors.LinearSegmentedColormap.from_list(
-                'Custom cmap', cmaplist, cmap.N)
+                # create the new map
+                cmap_sigtor = colors.LinearSegmentedColormap.from_list(
+                    'Custom cmap', cmaplist, cmap.N)
 
-            # define the bins and normalize
-            bounds = np.arange(0, 11, 1)
-            norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
+                # define the bins and normalize
+                bounds = np.arange(0, 11, 1)
+                norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
 
 
-            ax_map.set_xlim([-1500000,2350000])
-            ax_map.set_ylim([-1500000,1300000])
-            otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
-                                     transform=ccrs.PlateCarree(),alpha=0.5,
-                                     cmap=cmap_sigtor,norm=norm_sigtor)
-            sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
-                                         transform=ccrs.PlateCarree(),
-                                         levels=[1,2,5,10,15],colors='black')
-            ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
+                ax_map.set_xlim([-1500000,2350000])
+                ax_map.set_ylim([-1500000,1300000])
+                otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
+                                        transform=ccrs.PlateCarree(),alpha=0.5,
+                                        cmap=cmap_sigtor,norm=norm_sigtor)
+                sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
+                                            transform=ccrs.PlateCarree(),
+                                            levels=[1,2,5,10,15],colors='black')
+                ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
+                
+                ax_map.add_feature(cfeature.STATES, linewidth=0.5)
+                ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
+                ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
+                                loc='left',weight='bold',size=20)
+
+                cax = fig.add_axes(self.gr_kwargs['cbar_coords'][j])
+                cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
+                cb.set_label('Probability',size=14,weight='bold')
+                cax.tick_params(labelsize=20)
+
+                widths = self.gr_kwargs['box_width']
+
+                # Get percentiles and round to integers
+                box_list = [
+                    boxplot_stats(cs[0])[0],
+                    boxplot_stats(cs[1])[0],
+                    boxplot_stats(cs[2])[0],
+                    boxplot_stats(cs[3])[0]
+                ]
+
+                # Update percentile stats for boxes
+                for i in range(0,cs.shape[0]):
+                    box_list[i]['whislo'],box_list[i]['q1'],box_list[i]['q3'],box_list[i]['whishi'] = np.percentile(cs[i],percs).astype('int')
+
+                # Create box plot with customized data/percentiles
+                box = ax1.bxp(box_list,vert=False,showfliers=False,
+                                widths=widths,showcaps=False,patch_artist=True,
+                                whiskerprops=dict(alpha=int(self.gr_kwargs['show_whisk'])))
+                
+                for whisker in box['whiskers']:
+                    whisker.set_linewidth(8.5)
+                    whisker.set_alpha(0.4)
+
+                # Annotating median values on boxplots
+                for idx,median in enumerate(box['medians']):
+                    text = median.get_xdata()[0]
+                    ax1.text(text,idx+1.15,f'{int(text)}',ha='center',fontsize=24)
+
+                # Annotating scenario percentile values
+                for idx,num in enumerate(box['whiskers']):
+                    text_worst = num.get_xdata()[1]
+                    worst_x_off = int(text_worst) / 5
+
+                    text_best = num.get_xdata()[1]
+                    best_x_off = int(text_best) / 5
+                    if idx % 2 == 1:
+                        ax1.text(int(text_worst)+worst_x_off,int(idx/2)+1,f'{int(text_worst)}',ha='left',va='center',fontsize=18)
+                    else:
+                        ax1.text(int(text_best)-best_x_off,int(idx/2)+1,f'{int(text_best)}',ha='right',va='center',fontsize=18)
+
+                # Plot aesthetics
+                ax1.set_xscale('symlog')
+                ax1.set_xlim([0,400])
+
+                # Make sure x-axis ticks are on integers
+                ax1.set_xticks([0,1,5,10,25,50,100,200])
+                ax1.set_xticklabels(['0','1','5','10','25','50','100','200'])
+                ax1.grid(axis = 'x', alpha=0.3)
+
+                ax1.set_yticklabels(['All','EF1+','EF2+','EF3+'])
+                ax1.tick_params(labelsize=24)
+                ax1.tick_params(axis='y',pad=10)
+                ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=20)
+
+                # Title and Other Info
+                ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
+
+                plt.setp(box['boxes'],facecolor='black')
+                plt.setp(box['medians'],linewidth=2,color='white')
+
+                # Create exceedance matrix plot
+                heatmap_list = np.array(starter_list).T
+                ax2.imshow(heatmap_list,cmap='Reds',vmin=0,vmax=100)
+                ax2.set_xticks(np.arange(heatmap_list.shape[1])+0.5, minor=True)
+                ax2.set_xticks(np.arange(heatmap_list.shape[1]))
+                ax2.set_xticklabels(['1+', '3+', '5+', '10+', '20+'])
+                ax2.set_yticks(np.arange(-.5, 3.5, 1), minor=True)
+                ax2.set_yticks(np.arange(heatmap_list.shape[0]))
+                ax2.set_yticklabels(['All','EF1+','EF2+','EF3+'])
+                ax2.grid(which="minor", color="w", linestyle='-', linewidth=1)
+                ax2.tick_params(which="minor", bottom=False, left=False, right=False)
+                ax2.tick_params(labelsize=24,length=0)
+                ax2.set_ylim([-0.5,3.5])
+                ax2.set_title('Count Exceedance Probability Matrix',loc='left',weight='bold',size=20)
+
+                # Plot aesthetics
+                for ax in [ax1,ax2]:
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['left'].set_visible(False)
+                    ax.spines['bottom'].set_visible(False)
+
+                kw = dict(horizontalalignment="center",
+                        verticalalignment="center",
+                        fontsize=26,weight='bold')
+                for i in range(heatmap_list.shape[0]):
+                    for k in range(heatmap_list.shape[1]):
+                        kw.update(color=['black','white'][int(heatmap_list[i, k] > 60)])
+                        text = ax2.axes.text(k, i, f'{heatmap_list[i, k]}%', **kw)
+
+
+                gs.tight_layout(fig)
+
+                if j == 0:
+                    fig.savefig(out.joinpath('torcounts.png'),dpi=100)
+                else:
+                    fig.savefig(out.joinpath('torcounts_vert.png'),dpi=100)
             
-            ax_map.add_feature(cfeature.STATES, linewidth=0.5)
-            ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
-            ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
-                             loc='left',weight='bold',size=14)
-
-            cax = fig.add_axes([0.92, 0.05, 0.03, 0.4])
-            cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
-            cb.set_label('Probability',size=14,weight='bold')
-            cax.tick_params(labelsize=16)
-
-            widths = self.gr_kwargs['box_width']
-
-            # Get percentiles and round to integers
-            box_list = [
-                boxplot_stats(cs[0])[0],
-                boxplot_stats(cs[1])[0],
-                boxplot_stats(cs[2])[0],
-                boxplot_stats(cs[3])[0]
-            ]
-
-            # Update percentile stats for boxes
-            for i in range(0,cs.shape[0]):
-                box_list[i]['q1'], box_list[i]['q3'] = np.percentile(cs[i],percs).astype('int')
-
-            # Create box plot with customized data/percentiles
-            box = ax1.bxp(box_list,vert=False,showfliers=False,
-                            widths=widths,showcaps=False,patch_artist=True,
-                            whiskerprops=dict(alpha=int(self.gr_kwargs['show_whisk'])))
-
-            # Annotating median values on boxplots
-            for idx,median in enumerate(box['medians']):
-                text = median.get_xdata()[0]
-                ax1.text(text,idx+1.15,f'{int(text)}',ha='center',fontsize=14)
-
-            # Plot aesthetics
-            # Formatting x-axis limits
-            x_min, x_max = ax1.get_xlim()
-            if x_max < 10:
-                x_max = 10
-                ax1.set_xlim([0,x_max])
-            else:
-                ax1.set_xlim([0,box_list[0]['q3']+10])
-
-            # Make sure x-axis ticks are on integers
-            ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-            ax1.set_yticklabels(['All','EF1+','EF2+','EF3+'])
-            ax1.tick_params(labelsize=14)
-            ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=14)
-
-            # Title and Other Info
-            ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
-
-            plt.setp(box['boxes'],facecolor='black')
-            plt.setp(box['medians'],linewidth=2,color='white')
-
-            # Create exceedance matrix plot
-            heatmap_list = np.array(starter_list).T
-            ax2.imshow(heatmap_list,cmap='Reds',vmin=0,vmax=100)
-            ax2.set_xticks(np.arange(heatmap_list.shape[1])+0.5, minor=True)
-            ax2.set_xticks(np.arange(heatmap_list.shape[1]))
-            ax2.set_xticklabels(['1+', '3+', '5+', '10+', '20+'])
-            ax2.set_yticks(np.arange(-.5, 3.5, 1), minor=True)
-            ax2.set_yticks(np.arange(heatmap_list.shape[0]))
-            ax2.set_yticklabels(['All','EF1+','EF2+','EF3+'])
-            ax2.grid(which="minor", color="w", linestyle='-', linewidth=1)
-            ax2.tick_params(which="minor", bottom=False, left=False, right=False)
-            ax2.tick_params(labelsize=14,length=0)
-            ax2.set_ylim([-0.5,3.5])
-            ax2.set_title('Count Exceedance Probability Matrix',loc='left',weight='bold',size=14)
-
-            # Plot aesthetics
-            for ax in [ax1,ax2]:
-                ax.spines['right'].set_visible(False)
-                ax.spines['top'].set_visible(False)
-                ax.spines['left'].set_visible(False)
-                ax.spines['bottom'].set_visible(False)
-
-            kw = dict(horizontalalignment="center",
-                    verticalalignment="center",
-                    fontsize=14,weight='bold')
-            for i in range(heatmap_list.shape[0]):
-                for j in range(heatmap_list.shape[1]):
-                    kw.update(color=['black','white'][int(heatmap_list[i, j] > 60)])
-                    text = ax2.axes.text(j, i, f'{heatmap_list[i, j]}%', **kw)
-
-
-            gs.tight_layout(fig)
-            fig.savefig(out.joinpath('torcounts.png'),dpi=100)
-        
         else:
 
             alltor_perc = np.percentile(cs[0,:],q=percs).round().astype('int')
