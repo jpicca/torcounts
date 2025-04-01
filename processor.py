@@ -247,7 +247,7 @@ class TorProbSim(object):
 
                 cax = fig.add_axes(self.gr_kwargs['cbar_coords'][j])
                 cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
-                cb.set_label('Probability',size=14,weight='bold')
+                # cb.set_label('Probability',size=14,weight='bold')
                 cax.tick_params(labelsize=20)
 
                 widths = self.gr_kwargs['box_width']
