@@ -305,7 +305,7 @@ class TorProbSim(object):
                 ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=20)
 
                 # Title and Other Info
-                ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
+                # ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
 
                 plt.setp(box['boxes'],facecolor='black')
                 plt.setp(box['medians'],linewidth=2,color='white')
