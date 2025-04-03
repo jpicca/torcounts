@@ -113,8 +113,8 @@ class TorProbSim(object):
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'figsize': [(16,16),(12,30)],
-            'gridspec': [(5,8),(9,8)],
+            'figsize': [(16,16),(12,20)],
+            'gridspec': [(5,8),(8,8)],
             'show_whisk': True,
             'box_percs': [5,25,75,95],
             'box_width': 0.2,
@@ -203,9 +203,8 @@ class TorProbSim(object):
                     ax2 = fig.add_subplot(gs[:2,:4])
                     ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
                 else:
-                    ax1 = fig.add_subplot(gs[:3,:])
-                    ax2 = fig.add_subplot(gs[3:6,:])
-                    ax_map = fig.add_subplot(gs[6:,:],projection=ccrs.LambertConformal())
+                    ax1 = fig.add_subplot(gs[:4,:])
+                    ax2 = fig.add_subplot(gs[4:,:])
 
                 ### Unconditional Probability Map
 
@@ -229,26 +228,26 @@ class TorProbSim(object):
                 bounds = np.arange(0, 11, 1)
                 norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
 
+                if j == 0:
 
-                ax_map.set_xlim([-1500000,2350000])
-                ax_map.set_ylim([-1500000,1300000])
-                otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
-                                        transform=ccrs.PlateCarree(),alpha=0.5,
-                                        cmap=cmap_sigtor,norm=norm_sigtor)
-                sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
-                                            transform=ccrs.PlateCarree(),
-                                            levels=[1,2,5,10,15],colors='black')
-                ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
-                
-                ax_map.add_feature(cfeature.STATES, linewidth=0.5)
-                ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
-                ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
-                                loc='left',weight='bold',size=20)
+                    ax_map.set_xlim([-1500000,2350000])
+                    ax_map.set_ylim([-1500000,1300000])
+                    otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
+                                            transform=ccrs.PlateCarree(),alpha=0.5,
+                                            cmap=cmap_sigtor,norm=norm_sigtor)
+                    sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
+                                                transform=ccrs.PlateCarree(),
+                                                levels=[1,2,5,10,15],colors='black')
+                    ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
+                    
+                    ax_map.add_feature(cfeature.STATES, linewidth=0.5)
+                    ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
+                    ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
+                                    loc='left',weight='bold',size=20)
 
-                cax = fig.add_axes(self.gr_kwargs['cbar_coords'][j])
-                cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
-                # cb.set_label('Probability',size=14,weight='bold')
-                cax.tick_params(labelsize=20)
+                    cax = fig.add_axes(self.gr_kwargs['cbar_coords'][j])
+                    cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
+                    cax.tick_params(labelsize=20)
 
                 widths = self.gr_kwargs['box_width']
 
