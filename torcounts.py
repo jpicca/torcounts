@@ -1,9 +1,8 @@
 from processor import TorProbSim
-from pdb import set_trace
+from pdb import set_trace as st
 
 import pathlib
 import argparse
-import json
 
 import numpy as np
 from scipy import interpolate as I
@@ -18,8 +17,8 @@ import os
 
 
 ### CLI Parser ###
-forecast_file_help = "The tornado coverage probabilities grib file"
-cig_file_help = "The conditional intensity geojson file"
+forecast_file_help = "The tornado continuous coverage probability grib file"
+cig_file_help = "The continuous conditional intensity npz file"
 out_path_help = "Absolute path to the directory for writing the images"
 ndfd_file_help = "NPZ including grid lat/lons and projection string"
 

@@ -97,15 +97,29 @@ def weighted_choice(prob, probs, cprobs, size):
 def flatten_list(_list):
     return np.array([item for sublist in _list for item in sublist])
 
+def degrade_torn(continuous):
+    
+    degraded_grid = continuous.copy()
+    
+    degraded_grid[degraded_grid < 2] = 0
+    degraded_grid[np.logical_and(degraded_grid >= 2, degraded_grid < 5)] = 2
+    degraded_grid[np.logical_and(degraded_grid >= 5, degraded_grid < 10)] = 5
+    degraded_grid[np.logical_and(degraded_grid >= 10, degraded_grid < 15)] = 10
+    degraded_grid[np.logical_and(degraded_grid >= 15, degraded_grid < 30)] = 15
+    degraded_grid[np.logical_and(degraded_grid >= 30, degraded_grid < 45)] = 30
+    degraded_grid[np.logical_and(degraded_grid >= 45, degraded_grid < 60)] = 45
+    degraded_grid[degraded_grid >= 60] = 60
+    
+    return degraded_grid
+
 
 class TorProbSim(object):
-    def __init__(self,torn,cigTorn,lons,lats,ndfd_area=25,nsims=10000):
-        self.tornProb = torn
-        self.tornProb[self.tornProb < 0] = 0
-        self.cigProb = cigTorn
+    def __init__(self,ctorn,cig_torn,lons,lats,ndfd_area=25,nsims=10000):
+        self.tornProb = degrade_torn(ctorn)
+        self.cigProb = cig_torn
         self.lons = lons
         self.lats = lats
-        self.continuous = make_continuous(self.tornProb)
+        self.continuous = ctorn
         self.tornado_dists = TornadoDistributions()
         self.nonsig_sigtorp = np.sum(self.tornado_dists.r_nonsig[2:])
         self.singlesig_sigtorp = np.sum(self.tornado_dists.r_singlesig[2:])
@@ -113,8 +127,8 @@ class TorProbSim(object):
         self.ndfd_area = ndfd_area
         self.nsims = nsims
         self.gr_kwargs = {
-            'figsize': [(16,16),(12,20)],
-            'gridspec': [(5,8),(8,8)],
+            'figsize': [(20,12),(12,20)],
+            'gridspec': [(1,8),(8,8)],
             'show_whisk': True,
             'box_percs': [5,25,75,95],
             'box_width': 0.2,
@@ -199,9 +213,9 @@ class TorProbSim(object):
                 gs = gridspec.GridSpec(self.gr_kwargs['gridspec'][j][0],
                                        self.gr_kwargs['gridspec'][j][1])
                 if j == 0:
-                    ax1 = fig.add_subplot(gs[:2,4:])
-                    ax2 = fig.add_subplot(gs[:2,:4])
-                    ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
+                    ax1 = fig.add_subplot(gs[:,5:])
+                    ax2 = fig.add_subplot(gs[:,:5])
+                    # ax_map = fig.add_subplot(gs[2:,:],projection=ccrs.LambertConformal())
                 else:
                     ax1 = fig.add_subplot(gs[:4,:])
                     ax2 = fig.add_subplot(gs[4:,:])
@@ -227,27 +241,6 @@ class TorProbSim(object):
                 # define the bins and normalize
                 bounds = np.arange(0, 11, 1)
                 norm_sigtor = colors.BoundaryNorm(bounds, cmap_sigtor.N, extend='max')
-
-                if j == 0:
-
-                    ax_map.set_xlim([-1500000,2350000])
-                    ax_map.set_ylim([-1500000,1300000])
-                    otlk = ax_map.pcolormesh(self.lons,self.lats,sigtorp*100,
-                                            transform=ccrs.PlateCarree(),alpha=0.5,
-                                            cmap=cmap_sigtor,norm=norm_sigtor)
-                    sigprob_ctr = ax_map.contour(self.lons,self.lats,sigtorp*100,
-                                                transform=ccrs.PlateCarree(),
-                                                levels=[1,2,5,10,15],colors='black')
-                    ax_map.clabel(sigprob_ctr,inline=True,fontsize=20,fmt='%1.0f')
-                    
-                    ax_map.add_feature(cfeature.STATES, linewidth=0.5)
-                    ax_map.add_feature(cfeature.COASTLINE, linewidth=0.5, alpha=0.2)
-                    ax_map.set_title('Implied Unconditional Probability of EF2+ w/i 25 mi',
-                                    loc='left',weight='bold',size=20)
-
-                    cax = fig.add_axes(self.gr_kwargs['cbar_coords'][j])
-                    cb = fig.colorbar(otlk, cax=cax,orientation='vertical')
-                    cax.tick_params(labelsize=20)
 
                 widths = self.gr_kwargs['box_width']
 
@@ -299,12 +292,10 @@ class TorProbSim(object):
                 ax1.grid(axis = 'x', alpha=0.3)
 
                 ax1.set_yticklabels(['All','EF1+','EF2+','EF3+'])
-                ax1.tick_params(labelsize=24)
+                ax1.tick_params(labelsize=22)
                 ax1.tick_params(axis='y',pad=10)
                 ax1.set_title('Ranges of Most Likely Tornado Counts',loc='left',weight='bold',size=20)
 
-                # Title and Other Info
-                # ax1.text(0,4.45,'Annotated values indicate median scenario.',ha='left',fontsize=10)
 
                 plt.setp(box['boxes'],facecolor='black')
                 plt.setp(box['medians'],linewidth=2,color='white')
@@ -337,7 +328,14 @@ class TorProbSim(object):
                 for i in range(heatmap_list.shape[0]):
                     for k in range(heatmap_list.shape[1]):
                         kw.update(color=['black','white'][int(heatmap_list[i, k] > 60)])
-                        text = ax2.axes.text(k, i, f'{heatmap_list[i, k]}%', **kw)
+                        # text = ax2.axes.text(k, i, f'{heatmap_list[i, k]}%', **kw)
+                        if heatmap_list[i, k] == 0:
+                            matrix_val = '<1'
+                        elif heatmap_list[i, k] == 100:
+                            matrix_val = '>99'
+                        else:
+                            matrix_val = f'{heatmap_list[i, k]}'
+                        text = ax2.axes.text(k, i, f'{matrix_val}%', **kw)
 
 
                 gs.tight_layout(fig)
